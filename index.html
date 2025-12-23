@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>صمم صورتك الاحترافية</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e8e8e8;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    h1 {
+      color: #d4af37;
+      margin-bottom: 1.5rem;
+      font-size: 2rem;
+    }
+    .controls {
+      margin-bottom: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      align-items: center;
+    }
+    input[type="file"],
+    input[type="text"] {
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 2px solid #d4af37;
+      background: #0f3460;
+      color: white;
+      width: 100%;
+      max-width: 400px;
+    }
+    button {
+      padding: 12px 30px;
+      font-size: 1.1rem;
+      background: linear-gradient(135deg, #8b6f47 0%, #d4af37 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+      font-weight: bold;
+    }
+    button:hover {
+      background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+    }
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    #output {
+      margin-top: 2rem;
+      border: 3px solid #d4af37;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+    .note {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🖼️ صمم صورتك الاحترافية</h1>
+
+    <div class="controls">
+      <input type="file" id="imageInput" accept="image/*" />
+      <input type="text" id="customText" placeholder="النص (اختياري - افتراضي: Arkan Updates)" />
+      <div class="button-group">
+        <button id="generateBtn">إنشاء التصميم</button>
+        <button id="exportBtn" style="background: linear-gradient(135deg, #2d4a6e 0%, #4a6fa5 100%);">تصدير الصورة</button>
+      </div>
+    </div>
+
+    <div id="output">
+      <canvas id="canvas" width="1400" height="900"></canvas>
+    </div>
+
+    <p class="note">ارفع صورة، اكتب نصًا (اختياري)، ثم اضغط "إنشاء التصميم"</p>
+  </div>
+
+  <script>
+    const SERVER_LOGO = 'logo.png';
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const WIDTH = 1400;
+    const HEIGHT = 900;
+
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('imageInput');
+      const textInput = document.getElementById('customText').value.trim();
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert('يرجى رفع صورة أولاً!');
+        return;
+      }
+
+      const customText = textInput || 'Arkan';
+
+      try {
+        const baseImage = await loadImageFromFile(fileInput.files[0]);
+        const logo = await loadImage(SERVER_LOGO);
+
+        // 1. خلفية متدرجة هادئة
+        const bgGradient = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
+        bgGradient.addColorStop(0, '#1a1a2e');
+        bgGradient.addColorStop(0.5, '#16213e');
+        bgGradient.addColorStop(1, '#0f3460');
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        // 2. الصورة المرفوعة كخلفية خفيفة
+        ctx.save();
+        ctx.globalAlpha = 0.15;
+        ctx.filter = 'blur(8px)';
+        const scale = Math.max(WIDTH / baseImage.width, HEIGHT / baseImage.height);
+        const x = (WIDTH / 2) - (baseImage.width * scale) / 2;
+        const y = (HEIGHT / 2) - (baseImage.height * scale) / 2;
+        ctx.drawImage(baseImage, x, y, baseImage.width * scale, baseImage.height * scale);
+        ctx.restore();
+
+        // 3. نقاط ضوء هادئة
+        for (let i = 0; i < 15; i++) {
+          const px = Math.random() * WIDTH;
+          const py = Math.random() * HEIGHT;
+          const radius = Math.random() * 80 + 40;
+          const glow = ctx.createRadialGradient(px, py, 0, px, py, radius);
+          glow.addColorStop(0, `rgba(212, 175, 55, ${Math.random() * 0.08 + 0.03})`);
+          glow.addColorStop(1, 'rgba(212, 175, 55, 0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(px, py, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 4. الشريط الجانبي
+        const sideBarWidth = 350;
+        const sideBarGradient = ctx.createLinearGradient(0, 0, sideBarWidth, 0);
+        sideBarGradient.addColorStop(0, 'rgba(15, 52, 96, 0.85)');
+        sideBarGradient.addColorStop(1, 'rgba(15, 52, 96, 0.4)');
+        ctx.fillStyle = sideBarGradient;
+        ctx.fillRect(0, 0, sideBarWidth, HEIGHT);
+
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sideBarWidth, 0);
+        ctx.lineTo(sideBarWidth, HEIGHT);
+        ctx.stroke();
+
+        // 5. اللوجو
+        const logoX = sideBarWidth / 2;
+        const logoY = 120;
+        const logoSize = 140;
+
+        ctx.fillStyle = 'rgba(212, 175, 55, 0.2)';
+        ctx.beginPath();
+        ctx.arc(logoX, logoY, logoSize / 2 + 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(logoX, logoY, logoSize / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(logo, logoX - logoSize / 2, logoY - logoSize / 2, logoSize, logoSize);
+        ctx.restore();
+
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.8)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(logoX, logoY, logoSize / 2, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(logoX, logoY, logoSize / 2 + 8, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 6. النص الدوراني في الشريط الجانبي
+        ctx.save();
+        ctx.translate(sideBarWidth / 2, 320);
+        ctx.rotate(-Math.PI / 2);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 2;
+        ctx.fillStyle = '#e8e8e8';
+        ctx.font = 'bold 50px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(customText, 0, 0);
+        ctx.restore();
+
+        // 7. خطوط زخرفية في الشريط
+        for (let i = 0; i < 4; i++) {
+          const y = 450 + (i * 100);
+          ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(50, y);
+          ctx.lineTo(sideBarWidth - 50, y);
+          ctx.stroke();
+        }
+
+        // 8. الإطار الرئيسي
+        const mainFrameX = sideBarWidth + 60;
+        const mainFrameY = 80;
+        const mainFrameWidth = WIDTH - sideBarWidth - 120;
+        const mainFrameHeight = HEIGHT - 240;
+
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetX = 8;
+        ctx.shadowOffsetY = 8;
+
+        const frameBg = ctx.createLinearGradient(mainFrameX, mainFrameY, mainFrameX + mainFrameWidth, mainFrameY + mainFrameHeight);
+        frameBg.addColorStop(0, 'rgba(255,255,255,0.08)');
+        frameBg.addColorStop(0.5, 'rgba(255,255,255,0.12)');
+        frameBg.addColorStop(1, 'rgba(255,255,255,0.08)');
+        ctx.fillStyle = frameBg;
+
+        ctx.beginPath();
+        ctx.moveTo(mainFrameX + 40, mainFrameY);
+        ctx.lineTo(mainFrameX + mainFrameWidth - 40, mainFrameY);
+        ctx.quadraticCurveTo(mainFrameX + mainFrameWidth, mainFrameY, mainFrameX + mainFrameWidth, mainFrameY + 40);
+        ctx.lineTo(mainFrameX + mainFrameWidth, mainFrameY + mainFrameHeight - 40);
+        ctx.quadraticCurveTo(mainFrameX + mainFrameWidth, mainFrameY + mainFrameHeight, mainFrameX + mainFrameWidth - 40, mainFrameY + mainFrameHeight);
+        ctx.lineTo(mainFrameX + 40, mainFrameY + mainFrameHeight);
+        ctx.quadraticCurveTo(mainFrameX, mainFrameY + mainFrameHeight, mainFrameX, mainFrameY + mainFrameHeight - 40);
+        ctx.lineTo(mainFrameX, mainFrameY + 40);
+        ctx.quadraticCurveTo(mainFrameX, mainFrameY, mainFrameX + 40, mainFrameY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.6)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // 9. الصورة داخل الإطار
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(mainFrameX + 50, mainFrameY + 10);
+        ctx.lineTo(mainFrameX + mainFrameWidth - 50, mainFrameY + 10);
+        ctx.quadraticCurveTo(mainFrameX + mainFrameWidth - 10, mainFrameY + 10, mainFrameX + mainFrameWidth - 10, mainFrameY + 50);
+        ctx.lineTo(mainFrameX + mainFrameWidth - 10, mainFrameY + mainFrameHeight - 50);
+        ctx.quadraticCurveTo(mainFrameX + mainFrameWidth - 10, mainFrameY + mainFrameHeight - 10, mainFrameX + mainFrameWidth - 50, mainFrameY + mainFrameHeight - 10);
+        ctx.lineTo(mainFrameX + 50, mainFrameY + mainFrameHeight - 10);
+        ctx.quadraticCurveTo(mainFrameX + 10, mainFrameY + mainFrameHeight - 10, mainFrameX + 10, mainFrameY + mainFrameHeight - 50);
+        ctx.lineTo(mainFrameX + 10, mainFrameY + 50);
+        ctx.quadraticCurveTo(mainFrameX + 10, mainFrameY + 10, mainFrameX + 50, mainFrameY + 10);
+        ctx.closePath();
+        ctx.clip();
+
+        ctx.globalAlpha = 1.0;
+        const imgScale = Math.max((mainFrameWidth - 20) / baseImage.width, (mainFrameHeight - 20) / baseImage.height);
+        const imgX = mainFrameX + 10 + (mainFrameWidth - 20) / 2 - (baseImage.width * imgScale) / 2;
+        const imgY = mainFrameY + 10 + (mainFrameHeight - 20) / 2 - (baseImage.height * imgScale) / 2;
+        ctx.drawImage(baseImage, imgX, imgY, baseImage.width * imgScale, baseImage.height * imgScale);
+        ctx.restore();
+
+        // 10. الشريط السفلي
+        const bottomBarY = HEIGHT - 120;
+        const bottomBarHeight = 80;
+
+        const bottomGradient = ctx.createLinearGradient(0, bottomBarY, WIDTH, bottomBarY);
+        bottomGradient.addColorStop(0, 'rgba(15, 52, 96, 0.5)');
+        bottomGradient.addColorStop(0.5, 'rgba(15, 52, 96, 0.7)');
+        bottomGradient.addColorStop(1, 'rgba(15, 52, 96, 0.5)');
+        ctx.fillStyle = bottomGradient;
+        ctx.fillRect(0, bottomBarY, WIDTH, bottomBarHeight);
+
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, bottomBarY);
+        ctx.lineTo(WIDTH, bottomBarY);
+        ctx.stroke();
+
+        // 11. النص السفلي
+        ctx.fillStyle = '#d4af37';
+        ctx.font = 'bold 36px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetY = 2;
+        ctx.fillText('Arkan Updates', WIDTH / 2, bottomBarY + 50);
+        ctx.shadowColor = 'transparent';
+
+      } catch (err) {
+        console.error(err);
+        alert('حدث خطأ أثناء إنشاء الصورة');
+      }
+    });
+
+    // زر التصدير
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      try {
+        const link = document.createElement('a');
+        link.download = 'arkan-design.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (err) {
+        console.error(err);
+        alert('حدث خطأ أثناء تصدير الصورة');
+      }
+    });
+
+    function loadImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function loadImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
+  </script>
+</body>
+</html>
